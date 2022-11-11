@@ -1,0 +1,373 @@
+
+<!DOCTYPE html
+  PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html><head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+   <!--
+This HTML was auto-generated from MATLAB code.
+To make changes, update the MATLAB code and republish this document.
+      --><title>srconvert</title><meta name="generator" content="MATLAB 9.7"><link rel="schema.DC" href="http://purl.org/dc/elements/1.1/"><meta name="DC.date" content="2020-10-06"><meta name="DC.source" content="srconvert.m"><style type="text/css">
+html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,font,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,center,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td{margin:0;padding:0;border:0;outline:0;font-size:100%;vertical-align:baseline;background:transparent}body{line-height:1}ol,ul{list-style:none}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}:focus{outine:0}ins{text-decoration:none}del{text-decoration:line-through}table{border-collapse:collapse;border-spacing:0}
+
+html { min-height:100%; margin-bottom:1px; }
+html body { height:100%; margin:0px; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#000; line-height:140%; background:#fff none; overflow-y:scroll; }
+html body td { vertical-align:top; text-align:left; }
+
+h1 { padding:0px; margin:0px 0px 25px; font-family:Arial, Helvetica, sans-serif; font-size:1.5em; color:#d55000; line-height:100%; font-weight:normal; }
+h2 { padding:0px; margin:0px 0px 8px; font-family:Arial, Helvetica, sans-serif; font-size:1.2em; color:#000; font-weight:bold; line-height:140%; border-bottom:1px solid #d6d4d4; display:block; }
+h3 { padding:0px; margin:0px 0px 5px; font-family:Arial, Helvetica, sans-serif; font-size:1.1em; color:#000; font-weight:bold; line-height:140%; }
+
+a { color:#005fce; text-decoration:none; }
+a:hover { color:#005fce; text-decoration:underline; }
+a:visited { color:#004aa0; text-decoration:none; }
+
+p { padding:0px; margin:0px 0px 20px; }
+img { padding:0px; margin:0px 0px 20px; border:none; }
+p img, pre img, tt img, li img, h1 img, h2 img { margin-bottom:0px; } 
+
+ul { padding:0px; margin:0px 0px 20px 23px; list-style:square; }
+ul li { padding:0px; margin:0px 0px 7px 0px; }
+ul li ul { padding:5px 0px 0px; margin:0px 0px 7px 23px; }
+ul li ol li { list-style:decimal; }
+ol { padding:0px; margin:0px 0px 20px 0px; list-style:decimal; }
+ol li { padding:0px; margin:0px 0px 7px 23px; list-style-type:decimal; }
+ol li ol { padding:5px 0px 0px; margin:0px 0px 7px 0px; }
+ol li ol li { list-style-type:lower-alpha; }
+ol li ul { padding-top:7px; }
+ol li ul li { list-style:square; }
+
+.content { font-size:1.2em; line-height:140%; padding: 20px; }
+
+pre, code { font-size:12px; }
+tt { font-size: 1.2em; }
+pre { margin:0px 0px 20px; }
+pre.codeinput { padding:10px; border:1px solid #d3d3d3; background:#f7f7f7; }
+pre.codeoutput { padding:10px 11px; margin:0px 0px 20px; color:#4c4c4c; }
+pre.error { color:red; }
+
+@media print { pre.codeinput, pre.codeoutput { word-wrap:break-word; width:100%; } }
+
+span.keyword { color:#0000FF }
+span.comment { color:#228B22 }
+span.string { color:#A020F0 }
+span.untermstring { color:#B20000 }
+span.syscmd { color:#B28C00 }
+
+.footer { width:auto; padding:10px 0px; margin:25px 0px 0px; border-top:1px dotted #878787; font-size:0.8em; line-height:140%; font-style:italic; color:#878787; text-align:left; float:none; }
+.footer p { margin:0px; }
+.footer a { color:#878787; }
+.footer a:hover { color:#878787; text-decoration:underline; }
+.footer a:visited { color:#878787; }
+
+table th { padding:7px 5px; text-align:left; vertical-align:middle; border: 1px solid #d6d4d4; font-weight:bold; }
+table td { padding:7px 5px; text-align:left; vertical-align:top; border:1px solid #d6d4d4; }
+
+
+
+
+
+  </style></head><body><div class="content"><h2>Contents</h2><div><ul><li><a href="#3">Comments and writeup</a></li></ul></div><pre class="codeinput"><span class="comment">% Danny Hong, Arthur Skok, Kenny Huang</span>
+<span class="comment">% Project 1: Sampling Rate Conversion: Multi-Stage Polyphased System</span>
+
+<span class="keyword">function</span> out = srconvert(in)
+</pre><pre class="codeinput">tic
+
+<span class="comment">%Declaring the num_mults and num_adds that represents the number of</span>
+<span class="comment">%multiplications and additions. They will be used later when the values are</span>
+<span class="comment">%to be reported.</span>
+num_mults = 0;
+num_adds = 0;
+
+<span class="comment">% Passband Cutoff (1/L) for the first Cheby2 filter with the upsample factor L = 10.</span>
+Wp1 = 1/10;
+<span class="comment">% Stopband Frequency (1.2*Passband Cutoff) for the first Cheby2 filter.</span>
+Ws1 = 1.2*Wp1;
+<span class="comment">% Passband Ripple (dB) for the first Cheby2 filter.</span>
+Rp1 = 0.1;
+<span class="comment">% Stopband Attenuation (dB) for the first Cheby2 filter.</span>
+Rs1 = 81.4;
+
+<span class="comment">%Passband Ripple and Stop band Attenuation were adjusted within the constraits to</span>
+<span class="comment">%ensure the filters and polyphase implementation passed the verify function</span>
+<span class="comment">%provided for the assignment.</span>
+
+<span class="comment">%Creating the first Cheby2 filter</span>
+[n1,Wn1] = cheb2ord(Wp1,Ws1,Rp1,Rs1);
+[b1,a1] = cheby2(n1,Rs1,Wn1);
+[h1,t1] = impz(b1,a1);
+freqz(b1,a1);
+
+<span class="comment">% Passband Cutoff (1/L) for the second Cheby2 filter with the upsample factor L = 8.</span>
+Wp2 = 1/8;
+<span class="comment">% Stopband Frequency (1.2*Passband Cutoff) for the second Cheby2 filter.</span>
+Ws2 = 1.2*Wp2;
+<span class="comment">% Passband Ripple (dB) for the second Cheby2 filter.</span>
+Rp2 = 0.09;
+<span class="comment">% Stopband Attenuation (dB) for the second Cheby2 filter.</span>
+Rs2 = 80.3;
+
+<span class="comment">%Creating the second Cheby2 filter</span>
+[n2,Wn2] = cheb2ord(Wp2,Ws2,Rp2,Rs2);
+[b2,a2] = cheby2(n2,Rs2,Wn2);
+[h2,t2] = impz(b2,a2);
+freqz(b2,a2);
+
+<span class="comment">% Passband Cutoff (1/L) for the third Cheby2 filter with the upsample factor L = 4.</span>
+Wp3 = 1/4;
+<span class="comment">% Stopband Frequency (1.2*Passband Cutoff) for the third Cheby2 filter.</span>
+Ws3 = 1.2*Wp2;
+<span class="comment">% Passband Ripple (dB) for the third Cheby2 filter.</span>
+Rp3 = 0.08;
+<span class="comment">% Stopband Attenuation (dB) for the third Cheby2 filter.</span>
+Rs3 = 94.3;
+
+<span class="comment">%Creating the third Cheby2 filter</span>
+[n3,Wn3] = cheb2ord(Wp3,Ws3,Rp3,Rs3);
+[b3,a3] = cheby2(n3,Rs3,Wn3);
+[h3,t3] = impz(b3,a3);
+freqz(b3,a3);
+
+<span class="comment">%Using poly1 to decompose each Cheby2 filter into polyphase filters for each interpolation stage</span>
+polyFilter10 = poly1(h1',10);
+polyFilter8 = poly1(h2',8);
+polyFilter4 = poly1(h3',4);
+
+<span class="comment">%Initialize each stage output as an array of zeros.</span>
+stage1 = zeros();
+stage2 = zeros();
+stage3 = zeros();
+
+<span class="comment">%We split our polyphase implementation into 3 stages, with upsamplings by</span>
+<span class="comment">%10, 8, and 4, after experimenting with a 4 stage implementation of  5, 4,</span>
+<span class="comment">%4 ,4 which did not pass one of the graphs for verification even after a</span>
+<span class="comment">%lot of trial and error. (Though,it was through using a rather similar</span>
+<span class="comment">%implementation).</span>
+
+<span class="keyword">for</span> i = 1:10
+    signal_in = conv(polyFilter10(i,:), in);
+    signal_in = upsample(signal_in, 10);
+    signal_in = circshift(signal_in, i-1);
+    stage1 = stage1 + signal_in;
+<span class="keyword">end</span>
+
+<span class="comment">%We used the formula from the textbook and the length of the filters to</span>
+<span class="comment">%come up with the number of multiplies and additions per unit time for our</span>
+<span class="comment">%implementation.</span>
+num_mults = num_mults + (10*(length(h1)/10));
+num_adds = num_adds + ((10-1)+(10*((length(h1)/10)-1)));
+<span class="comment">%%stage1 = 7*downsample(stage1, 7);</span>
+
+<span class="comment">%Initially we attempted to downsample between stages by 7, 7 and 3 respectively for the 3 stages;</span>
+<span class="comment">%however, the verify function gave terrible results for the passband response ripple. We experimented</span>
+<span class="comment">%and instead downsampled after all the polyphase components (which is a bit</span>
+<span class="comment">%counterintuitive, but the results were better in terms of the verify function.</span>
+
+<span class="keyword">for</span> i = 1:8
+    signal_in = conv(polyFilter8(i,:), stage1);
+    signal_in = upsample(signal_in, 8);
+    signal_in = circshift(signal_in, i-1);
+    stage2 = stage2 + signal_in;
+<span class="keyword">end</span>
+
+num_mults = num_mults + (8*(length(h2)/8));
+num_adds = num_adds + ((8-1)+(8*((length(h2)/8)-1)));
+<span class="comment">%%stage2 = 7*downsample(stage2, 7);</span>
+
+<span class="keyword">for</span> i = 1:4
+    signal_in = conv(polyFilter4(i,:), stage2);
+    signal_in = upsample(signal_in, 4);
+    signal_in = circshift(signal_in, i-1);
+    stage3 = stage3 + signal_in;
+<span class="keyword">end</span>
+
+num_mults = num_mults + (4*(length(h3)/4));
+num_adds = num_adds + ((4-1)+(4*((length(h3)/4)-1)));
+<span class="comment">%%stage3 = 3*downsample(stage3, 3);</span>
+
+fprintf(<span class="string">'Total number of multiplies: %d\n'</span>, num_mults);
+fprintf(<span class="string">'Total number of adds: %d\n'</span>, num_adds);
+
+signal_out = 147*downsample(stage3, 147);
+<span class="comment">%As mentioned in one of the previous comments, we initially tried to</span>
+<span class="comment">%downsample between stages, but the verify function would give terrible</span>
+<span class="comment">%results.</span>
+
+<span class="comment">%signal_out = stage3; If we were to downsample after each stage, stage3 would be the ouput</span>
+
+toc
+out = signal_out; <span class="comment">%Sets the output of the function to signal_out</span>
+</pre><pre class="codeoutput error">Not enough input arguments.
+
+Error in srconvert (line 79)
+    signal_in = conv(polyFilter10(i,:), in);
+</pre><h2 id="3">Comments and writeup</h2><pre class="codeinput"><span class="comment">% srconvert.m function uses a multi-staged polyphased system.</span>
+<span class="comment">% The upsample factor of 320 was broken up into 10, 8, and 4.</span>
+<span class="comment">% The delta function passed the constraints for srconvert after testing it using verify.</span>
+<span class="comment">% The ouputted audio file 'Wagner.wav' sounds nice.</span>
+<span class="comment">% The total number of multiplies is 1652 and the total number of additions is 1649.</span>
+
+<span class="comment">%As said before, we tried to downsample immediately after each</span>
+<span class="comment">%interpolation stage by factors of 7, 7, and 3 (7*7*3 = 147), but our</span>
+<span class="comment">%outputted Wagner file sounded pretty bad and out results after testing it on</span>
+<span class="comment">%the delta function showed that it did not pass completel pass verify since</span>
+<span class="comment">%for the Passband response, the passband ripple exceeded 100 dB. Therefore,</span>
+<span class="comment">%we decided to downsample in the very end by 147. We're not sure if this</span>
+<span class="comment">%was acceptable, but the results were much better after doing this.</span>
+
+<span class="comment">%After publishing out srconvert.m we got an error at line 79: not enough</span>
+<span class="comment">%input arguments, which is weird since the code compiled successfully when</span>
+<span class="comment">%we ran it on our main.m.</span>
+</pre><p class="footer"><br><a href="https://www.mathworks.com/products/matlab/">Published with MATLAB&reg; R2019b</a><br></p></div><!--
+##### SOURCE BEGIN #####
+% Danny Hong, Arthur Skok, Kenny Huang 
+% Project 1: Sampling Rate Conversion: Multi-Stage Polyphased System
+
+function out = srconvert(in)
+tic 
+
+%Declaring the num_mults and num_adds that represents the number of
+%multiplications and additions. They will be used later when the values are
+%to be reported. 
+num_mults = 0;
+num_adds = 0;
+
+% Passband Cutoff (1/L) for the first Cheby2 filter with the upsample factor L = 10. 
+Wp1 = 1/10;
+% Stopband Frequency (1.2*Passband Cutoff) for the first Cheby2 filter.
+Ws1 = 1.2*Wp1;
+% Passband Ripple (dB) for the first Cheby2 filter. 
+Rp1 = 0.1;
+% Stopband Attenuation (dB) for the first Cheby2 filter. 
+Rs1 = 81.4;
+
+%Passband Ripple and Stop band Attenuation were adjusted within the constraits to
+%ensure the filters and polyphase implementation passed the verify function
+%provided for the assignment.
+
+%Creating the first Cheby2 filter 
+[n1,Wn1] = cheb2ord(Wp1,Ws1,Rp1,Rs1);
+[b1,a1] = cheby2(n1,Rs1,Wn1);
+[h1,t1] = impz(b1,a1);
+freqz(b1,a1);
+
+% Passband Cutoff (1/L) for the second Cheby2 filter with the upsample factor L = 8. 
+Wp2 = 1/8;
+% Stopband Frequency (1.2*Passband Cutoff) for the second Cheby2 filter.
+Ws2 = 1.2*Wp2;
+% Passband Ripple (dB) for the second Cheby2 filter. 
+Rp2 = 0.09;
+% Stopband Attenuation (dB) for the second Cheby2 filter. 
+Rs2 = 80.3;
+
+%Creating the second Cheby2 filter 
+[n2,Wn2] = cheb2ord(Wp2,Ws2,Rp2,Rs2);
+[b2,a2] = cheby2(n2,Rs2,Wn2);
+[h2,t2] = impz(b2,a2);
+freqz(b2,a2);
+
+% Passband Cutoff (1/L) for the third Cheby2 filter with the upsample factor L = 4. 
+Wp3 = 1/4;
+% Stopband Frequency (1.2*Passband Cutoff) for the third Cheby2 filter.
+Ws3 = 1.2*Wp2;
+% Passband Ripple (dB) for the third Cheby2 filter. 
+Rp3 = 0.08;
+% Stopband Attenuation (dB) for the third Cheby2 filter. 
+Rs3 = 94.3;
+
+%Creating the third Cheby2 filter 
+[n3,Wn3] = cheb2ord(Wp3,Ws3,Rp3,Rs3);
+[b3,a3] = cheby2(n3,Rs3,Wn3);
+[h3,t3] = impz(b3,a3);
+freqz(b3,a3);
+
+%Using poly1 to decompose each Cheby2 filter into polyphase filters for each interpolation stage
+polyFilter10 = poly1(h1',10);
+polyFilter8 = poly1(h2',8);
+polyFilter4 = poly1(h3',4);
+
+%Initialize each stage output as an array of zeros.
+stage1 = zeros();
+stage2 = zeros();
+stage3 = zeros();
+
+%We split our polyphase implementation into 3 stages, with upsamplings by
+%10, 8, and 4, after experimenting with a 4 stage implementation of  5, 4,
+%4 ,4 which did not pass one of the graphs for verification even after a
+%lot of trial and error. (Though,it was through using a rather similar 
+%implementation).
+
+for i = 1:10
+    signal_in = conv(polyFilter10(i,:), in);
+    signal_in = upsample(signal_in, 10);
+    signal_in = circshift(signal_in, i-1);
+    stage1 = stage1 + signal_in;
+end
+
+%We used the formula from the textbook and the length of the filters to
+%come up with the number of multiplies and additions per unit time for our
+%implementation.
+num_mults = num_mults + (10*(length(h1)/10));
+num_adds = num_adds + ((10-1)+(10*((length(h1)/10)-1)));
+%%stage1 = 7*downsample(stage1, 7);
+
+%Initially we attempted to downsample between stages by 7, 7 and 3 respectively for the 3 stages; 
+%however, the verify function gave terrible results for the passband response ripple. We experimented 
+%and instead downsampled after all the polyphase components (which is a bit
+%counterintuitive, but the results were better in terms of the verify function.
+
+for i = 1:8
+    signal_in = conv(polyFilter8(i,:), stage1);
+    signal_in = upsample(signal_in, 8);
+    signal_in = circshift(signal_in, i-1);
+    stage2 = stage2 + signal_in;
+end
+
+num_mults = num_mults + (8*(length(h2)/8));
+num_adds = num_adds + ((8-1)+(8*((length(h2)/8)-1)));
+%%stage2 = 7*downsample(stage2, 7);
+
+for i = 1:4
+    signal_in = conv(polyFilter4(i,:), stage2);
+    signal_in = upsample(signal_in, 4);
+    signal_in = circshift(signal_in, i-1);
+    stage3 = stage3 + signal_in;
+end
+
+num_mults = num_mults + (4*(length(h3)/4));
+num_adds = num_adds + ((4-1)+(4*((length(h3)/4)-1)));
+%%stage3 = 3*downsample(stage3, 3);
+
+fprintf('Total number of multiplies: %d\n', num_mults); 
+fprintf('Total number of adds: %d\n', num_adds); 
+
+signal_out = 147*downsample(stage3, 147);
+%As mentioned in one of the previous comments, we initially tried to
+%downsample between stages, but the verify function would give terrible
+%results.
+
+%signal_out = stage3; If we were to downsample after each stage, stage3 would be the ouput 
+
+toc
+out = signal_out; %Sets the output of the function to signal_out
+%% Comments and writeup
+
+% srconvert.m function uses a multi-staged polyphased system.
+% The upsample factor of 320 was broken up into 10, 8, and 4.
+% The delta function passed the constraints for srconvert after testing it using verify.
+% The ouputted audio file 'Wagner.wav' sounds nice.
+% The total number of multiplies is 1652 and the total number of additions is 1649.
+
+%As said before, we tried to downsample immediately after each
+%interpolation stage by factors of 7, 7, and 3 (7*7*3 = 147), but our
+%outputted Wagner file sounded pretty bad and out results after testing it on 
+%the delta function showed that it did not pass completel pass verify since
+%for the Passband response, the passband ripple exceeded 100 dB. Therefore,
+%we decided to downsample in the very end by 147. We're not sure if this
+%was acceptable, but the results were much better after doing this. 
+
+%After publishing out srconvert.m we got an error at line 79: not enough
+%input arguments, which is weird since the code compiled successfully when
+%we ran it on our main.m. 
+
+##### SOURCE END #####
+--></body></html>
